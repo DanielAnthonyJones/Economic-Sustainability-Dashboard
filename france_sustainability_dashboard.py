@@ -129,29 +129,68 @@ def home_page():
         st.title("France Economic & Sustainability Dashboard")
         st.write("Explore France\'s economic growth in GDP, trade, and industry sectors. Use the buttons to navigate.")
     
-    st.divider()    
     
-    year = 2000
-
-    gdp_value = home_df[
-        (home_df["Indicator Name"] == "GDP (current US$)") &
-        (home_df["Year"] == year)]["Value"].values[0]
+    year = st.slider(
+        "Select Year",
+        min_value=int(df["Year"].min()),
+        max_value=int(df["Year"].max()),
+        value=int(df["Year"].max())
+    )
     
-    st.metric(f"GDP {year}", f"${gdp_value:,.0f}")
+    
+    indicator_choice = st.radio(
+        "Select GDP Indicator",
+        ["GDP (current US$)", "GDP per capita (current US$)"],
+        horizontal=True
+    )
+    
+    
+    gdp_series = home_df[
+        (home_df["Indicator Name"] == indicator_choice) &
+        (home_df["Year"] == year)]["Value"]
+    
+    gdp_value = gdp_series.iloc[0] if not gdp_series.empty else 0
+    
+    left, right = st.columns([0.7,0.3])
+    with right:
+        if gdp_value == 0:
+            st.warning(f"No data available for {indicator_choice} in {year}. Please select a different year or indicator.")
+        else:    
+            st.metric(f"{indicator_choice} {year}", f"${gdp_value:,.0f}")
+    
+    
+    min_year = home_df["Year"].min()
+    max_year = home_df["Year"].max()
+    
+    start_year = max(min_year, year - 10)
+    end_year = min(max_year, year)
+    
+    gdp_df = home_df[
+        (home_df["Indicator Name"] == indicator_choice) &
+        (home_df["Year"] >= start_year) &
+        (home_df["Year"] <= end_year)
+    ]
+    
     fig = px.line(
-        home_df[home_df["Indicator Name"] == "GDP (current US$)"],
+        gdp_df,
         x="Year",
         y="Value",
-        title=f"GDP Growth over time ({df['Year'].min()} - {df['Year'].max()})"
+        title=f"{indicator_choice} Growth over time ({start_year} - {end_year})",
+        subtitle=f"Hover over point to see exact value."
     )
     
     fig.update_layout(
     height=300,  
     margin=dict(l=10, r=10, t=50, b=100)
     )
-    
-    st.plotly_chart(fig) 
-       
+    with left:
+        if year <= min_year:
+            st.warning(f"Not enough historical data available for selected year. Please use slider to select a year greater than {min_year}")
+            st.warning("Or Instead 📊 Dive into Economic Structure or 🌍 Explore Trade with Other Countries.")
+        else:
+            st.plotly_chart(fig) 
+
+    st.divider()
     # Preparing data
     
     sector_indicators = ["Agriculture, forestry, and fishing, value added (current US$)",
@@ -185,32 +224,54 @@ def home_page():
 
     )
     
+    min_year = trade_df["Year"].min()
+    max_year = trade_df["Year"].max()
+
+    start_year = max(min_year, year - 10)
+    end_year = min(max_year, year)
+        
+    import_df = trade_df[
+        (trade_df["Indicator Name"] == "Imports of goods and services (annual % growth)") &
+        (trade_df["Year"] >= start_year) &
+        (trade_df["Year"] <= end_year)
+    ]
+            
+    
     fig_import = px.line(
-        trade_df[trade_df["Indicator Name"] == "Imports of goods and services (annual % growth)"],
+        import_df,
         x="Year",
         y="Value",
-        title=f"% Change in Imports {df['Year'].min()} - {df['Year'].max()}"
+        title=f"% Change in Imports {start_year} - {end_year}",
+        subtitle=f"Hover over point to see exact value. Use slider to adjust time range."
     )
     
     fig_import.update_layout(
         height=300,   
-        margin=dict(l=10, r=10, t=50, b=10)
+        margin=dict(l=10, r=10, t=70, b=10)
     )
     
+    export_df = trade_df[
+        (trade_df["Indicator Name"] == "Exports of goods and services (annual % growth)") &
+        (trade_df["Year"] >= start_year) &
+        (trade_df["Year"] <= end_year)
+    ]
+        
     fig_export = px.line(
-        trade_df[trade_df["Indicator Name"] == "Exports of goods and services (annual % growth)"],
+        export_df,
         x="Year",
         y="Value",
-        title=f"% Change in Exports {df['Year'].min()} - {df['Year'].max()}"  
+        title=f"% Change in Exports {start_year} - {end_year}",
+        subtitle=f"Hover over point to see exact value. Use slider to adjust time range." 
     )
+    
     
     fig_export.update_layout(
         height=300,   
-        margin=dict(l=10, r=10, t=50, b=10)
+        margin=dict(l=10, r=10, t=70, b=10)
     )
     
-    
-
+    fig_import.update_xaxes(dtick=1)
+    fig_export.update_xaxes(dtick=1)
   
     left, right = st.columns(2)
 
@@ -218,18 +279,24 @@ def home_page():
         b1,b2,b3 = st.columns(3)
         with b2:
             st.button(" 📊 Dive into Economic Structure", on_click=go, args=("economy",))
-        st.plotly_chart(fig_pie)
+        if year >= max_year:
+            st.warning(f"Not data available for selected year. Explore other years using slider, or 📊 Dive into Economic Structure.")
+        else:
+            st.plotly_chart(fig_pie)
     
     
     with right:
         b1,b2,b3 = st.columns([1,1,1])
         with b2:
             st.button("🌍 Explore Trade with Other Countries", on_click=go, args=("trade",))
-        col1, col2 = st.columns(2)
-        with col1:    
-            st.plotly_chart(fig_import)
-        with col2:
-            st.plotly_chart(fig_export)
+        if year <= min_year:
+            st.warning(f"Not enough historical data available for selected year. Please use slider to select a year greater than {min_year}, or 🌍 Explore Trade with Other Countries.")
+        else:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.plotly_chart(fig_import)
+            with col2:
+                st.plotly_chart(fig_export)
       
         
     return
