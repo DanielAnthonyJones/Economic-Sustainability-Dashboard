@@ -138,6 +138,11 @@ def home_page():
     )
     
     
+    col1, col2 = st.columns([0.7, 0.1])
+    with col2:
+        use_full_range = st.toggle("Full Chart Range", value=False)
+    
+    
     indicator_choice = st.radio(
         "Select GDP Indicator",
         ["GDP (current US$)", "GDP per capita (current US$)"],
@@ -162,9 +167,13 @@ def home_page():
     min_year = home_df["Year"].min()
     max_year = home_df["Year"].max()
     
-    start_year = max(min_year, year - 10)
-    end_year = min(max_year, year)
-    
+    if use_full_range:
+        start_year = min_year
+        end_year = max_year
+    else:
+        start_year = year - 10
+        end_year = year
+        
     gdp_df = home_df[
         (home_df["Indicator Name"] == indicator_choice) &
         (home_df["Year"] >= start_year) &
@@ -181,8 +190,12 @@ def home_page():
     
     fig.update_layout(
     height=300,  
-    margin=dict(l=10, r=10, t=50, b=100)
+    margin=dict(l=10, r=10, t=80, b=100)
     )
+    
+    if not use_full_range:
+        fig.update_xaxes(dtick=1)
+    
     with left:
         if year <= min_year:
             st.warning(f"Not enough historical data available for selected year. Please use slider to select a year greater than {min_year}")
@@ -227,8 +240,12 @@ def home_page():
     min_year = trade_df["Year"].min()
     max_year = trade_df["Year"].max()
 
-    start_year = max(min_year, year - 10)
-    end_year = min(max_year, year)
+    if use_full_range:
+        start_year = min_year
+        end_year = max_year
+    else:
+        start_year = year - 10
+        end_year = year
         
     import_df = trade_df[
         (trade_df["Indicator Name"] == "Imports of goods and services (annual % growth)") &
@@ -269,9 +286,9 @@ def home_page():
         height=300,   
         margin=dict(l=10, r=10, t=70, b=10)
     )
-    
-    fig_import.update_xaxes(dtick=1)
-    fig_export.update_xaxes(dtick=1)
+    if not use_full_range:
+        fig_import.update_xaxes(dtick=1)
+        fig_export.update_xaxes(dtick=1)
   
     left, right = st.columns(2)
 
