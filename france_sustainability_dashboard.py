@@ -4,7 +4,7 @@ import streamlit as st
 import plotly.express as px
 
 
-folder_name = "Datasets" # Folder where datasets will be saved
+folder_name = "assets" # Folder of assets used in dashboard
 
 try:
     script_dir = os.path.dirname(os.path.abspath(__file__)) # File path where script is running
@@ -17,7 +17,7 @@ except Exception:
 
 os.makedirs(folder, exist_ok=True)
 
-df = pd.read_csv(os.path.join(folder, "indicators_fra.csv")) # Load csv into dataframe
+df = pd.read_csv(os.path.join(folder, "datasets/indicators_fra.csv")) # Load csv into dataframe
 
 home_indicator_names = [
       
@@ -117,12 +117,21 @@ def go(page_name):
     
 
 def home_page():
+    st.set_page_config(layout="wide")
     
-    st.title("France Dashboard")
 
-    st.write("Explore France\'s growth in GDP, trade, and industry sectors.")
+    col1, col2 = st.columns([0.1, 1])
+    with col1:
+        st.image(os.path.join(folder, "images/flag.png"), width=500)
+        
+
+    with col2:
+        st.title("France Economic & Sustainability Dashboard")
+        st.write("Explore France\'s economic growth in GDP, trade, and industry sectors. Use the buttons to navigate.")
     
-    year = 2024
+    st.divider()    
+    
+    year = 2000
 
     gdp_value = home_df[
         (home_df["Indicator Name"] == "GDP (current US$)") &
@@ -133,21 +142,95 @@ def home_page():
         home_df[home_df["Indicator Name"] == "GDP (current US$)"],
         x="Year",
         y="Value",
-        title="GDP Growth over time"
+        title=f"GDP Growth over time ({df['Year'].min()} - {df['Year'].max()})"
+    )
+    
+    fig.update_layout(
+    height=300,  
+    margin=dict(l=10, r=10, t=50, b=100)
     )
     
     st.plotly_chart(fig) 
+       
+    # Preparing data
+    
+    sector_indicators = ["Agriculture, forestry, and fishing, value added (current US$)",
+    "Industry (including construction), value added (current US$)",
+    "Services, value added (current US$)",
+    "Manufacturing, value added (current US$)"]
+    
+    sector_df = df[
+        (df["Year"] == year) &
+        (df["Indicator Name"].isin(sector_indicators))
+    ]
+    
+    trade_indicators = ["Imports of goods and services (annual % growth)",
+    "Exports of goods and services (annual % growth)"]
+    
+    trade_df = df[
+        (df["Indicator Name"].isin(trade_indicators))
+    ]
+    
+    fig_pie = px.pie(
+        sector_df,
+        names="Indicator Name",
+        values="Value",
+        title=f"How each Industry contributed to GDP in {year}",
+        subtitle=f"Press Legend to toggle industries on/off"
+    )
+    
+    fig_pie.update_layout(
+        height=300,   
+        margin=dict(l=10, r=10, t=50, b=10)
+
+    )
+    
+    fig_import = px.line(
+        trade_df[trade_df["Indicator Name"] == "Imports of goods and services (annual % growth)"],
+        x="Year",
+        y="Value",
+        title=f"% Change in Imports {df['Year'].min()} - {df['Year'].max()}"
+    )
+    
+    fig_import.update_layout(
+        height=300,   
+        margin=dict(l=10, r=10, t=50, b=10)
+    )
+    
+    fig_export = px.line(
+        trade_df[trade_df["Indicator Name"] == "Exports of goods and services (annual % growth)"],
+        x="Year",
+        y="Value",
+        title=f"% Change in Exports {df['Year'].min()} - {df['Year'].max()}"  
+    )
+    
+    fig_export.update_layout(
+        height=300,   
+        margin=dict(l=10, r=10, t=50, b=10)
+    )
+    
+    
 
   
     left, right = st.columns(2)
 
     with left:
-        st.button(" Dive into Economic Structure", on_click=go, args=("economy",))
-     
+        b1,b2,b3 = st.columns(3)
+        with b2:
+            st.button(" 📊 Dive into Economic Structure", on_click=go, args=("economy",))
+        st.plotly_chart(fig_pie)
     
     
     with right:
-        st.button("Explore Trade with Other Countries", on_click=go, args=("trade",))
+        b1,b2,b3 = st.columns([1,1,1])
+        with b2:
+            st.button("🌍 Explore Trade with Other Countries", on_click=go, args=("trade",))
+        col1, col2 = st.columns(2)
+        with col1:    
+            st.plotly_chart(fig_import)
+        with col2:
+            st.plotly_chart(fig_export)
+      
         
     return
 
