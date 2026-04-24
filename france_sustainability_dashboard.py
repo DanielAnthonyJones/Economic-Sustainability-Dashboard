@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import numpy as np
 import streamlit as st
 import plotly.express as px
 
@@ -55,12 +56,12 @@ econ_indicator_names = [
 
 "Agriculture, forestry, and fishing, value added (current US$)",
 "Agriculture, forestry, and fishing, value added (% of GDP)",
-"Agriculture, forestry, and fishing, value added (annual % growth)"
+"Agriculture, forestry, and fishing, value added (annual % growth)",
 
 
 "Industry (including construction), value added (current US$)",
 "Industry (including construction), value added (% of GDP)",
-"Industry (including construction), value added (annual % growth)"
+"Industry (including construction), value added (annual % growth)",
 
 "Services, value added (current US$)",
 "Services, value added (% of GDP)",
@@ -148,6 +149,7 @@ def home_page():
         value=int(df["Year"].max())
     )
     
+    
     # Toggle for full chart range vs last 10 years, using columns to position toggle on the right side of the page
     
     col1, col2, col3 = st.columns([0.7, 0.1, 0.1])
@@ -162,6 +164,9 @@ def home_page():
         "GDP (constant 2015 US$)":"GDP (inflation adjusted)",
         "GDP per capita (constant 2015 US$)":"GDP per capita (inflation adjusted)"
     })    
+
+    for _ in range(3): # Add spacing  
+        st.write("")
 
     # Radio buttons to select GDP indicator for display and chart
     if adjust_inflation:
@@ -237,13 +242,19 @@ def home_page():
     
     # Display chart in left column, with warning if selected year is outside available data range
     with left:
-        if year <= min_year:
+        if (year <= min_year) and (not use_full_range):
             st.warning(f"Not enough historical data available for selected year. Please use slider to select a year greater than {min_year}")
             st.warning("Or Instead 📊 Dive into Economic Structure or 🌍 Explore Trade with Other Countries.")
         else:
             st.plotly_chart(fig) 
-
+            
+    for _ in range(3): # Add spacing  
+        st.write("")
+    
     st.divider() # Horizontal divider to separate sections
+    
+    for _ in range(3): # Add spacing  
+        st.write("")
     
     # Preparing data for economic structure and trade charts
     
@@ -269,12 +280,21 @@ def home_page():
     trade_df = df[
         (df["Indicator Name"].isin(trade_indicators))
     ]
+
+    color_map = {
+        "Agriculture, forestry, and fishing": "#FF2B2B", 
+        "Industry (including construction)": "#0068C9",  
+        "Services": "#83C9FF",                         
+        "Manufacturing": "#FFABAB"                      
+    }
     
     # Pie chart for economic structure based on value added by industry sectors for selected year
     fig_pie = px.pie(
         sector_df,
         names="Indicator Name",
         values="Value",
+        color="Indicator Name",
+        color_discrete_map=color_map,
         title=f"How each Industry contributed to GDP in {year}",
         subtitle=f"Press Legend to toggle industries on/off"
     )
@@ -307,7 +327,7 @@ def home_page():
             
     # Line chart for import
     fig_import = px.line(
-        import_df,
+        import_df.sort_values("Year"),
         x="Year",
         y="Percentage Change (%)",
         title=f"% Change in Imports {start_year} - {end_year}",
@@ -334,7 +354,7 @@ def home_page():
     # Line chart for export
        
     fig_export = px.line(
-        export_df,
+        export_df.sort_values("Year"),
         x="Year",
         y="Percentage Change (%)",
         title=f"% Change in Exports {start_year} - {end_year}",
@@ -365,7 +385,7 @@ def home_page():
         with b2:
             st.button(" 📊 Dive into Economic Structure", on_click=go, args=("economy",))
         if year >= max_year: # Handle case where no data
-            st.warning(f"Not data available for selected year. Explore other years using slider, or 📊 Dive into Economic Structure.")
+            st.warning(f"No data available for selected year. Explore other years using slider, or 📊 Dive into Economic Structure.")
         else:
             st.plotly_chart(fig_pie)
     
@@ -374,7 +394,7 @@ def home_page():
         b1,b2,b3 = st.columns(3)
         with b2:
             st.button("🌍 Explore Trade with Other Countries", on_click=go, args=("trade",))
-        if year <= min_year:
+        if year <= min_year and not use_full_range: # Handle case where no data
             st.warning(f"Not enough historical data available for selected year. Please use slider to select a year greater than {min_year}, or 🌍 Explore Trade with Other Countries.")
         else:
             # 2 columns to plot trade charts side by side
@@ -389,16 +409,146 @@ def home_page():
 
 def econ_page():
     
-    st.title("Economic Structure")
+    # Create 3 columns for flag and title and back button (adjusting positions)
+    col1, col2, col3 = st.columns([0.1, 1, 0.1])
+    with col1:
+        st.image(os.path.join(folder, "images/flag.png"), width=500) # Flag image
+        
 
-    st.write("Text")
+    with col2:
+        st.title("Economic Structure 📊")
+        st.write("How each economic sector contributes to France\'s economic growth.")
+    
+    with col3:
+        st.button("⬅️ Go Back", on_click=go, args=("home",))
+    
+    # Colour map for consistent colours across charts for each industry sector
+    color_map = {
+        "Agriculture, forestry, and fishing": "#FF2B2B", 
+        "Industry (including construction)": "#0068C9",  
+        "Services": "#83C9FF",                         
+        "Manufacturing": "#FFABAB"                      
+    }
 
-    # placeholders for charts:
-    st.write("charts")
-    st.write("charts")
-    st.write("charts")
+    st.divider()
 
-    st.button("Go Back", on_click=go, args=("home",))
+    for _ in range(3): # Add spacing  
+        st.write("")
+    
+    #  Creating and adjusting multiselect for economic sectors and segmented control for date range
+    
+    left,middle, right = st.columns([3,0.1, 1])
+    with left:
+        selected_sectors = st.multiselect("Select Economic Sector", ["Agriculture, forestry, and fishing", "Industry (including construction)", "Services", "Manufacturing"])
+    with right:
+        time_frame = st.segmented_control(
+        "Select Date Range",
+        ["Last 5 Years", "Last 10 Years", "Last 20 Years", "All Time"],
+    )
+        
+    for _ in range(3): # Add spacing  
+        st.write("")
+        
+    # Warning for comparing manufacturing data due to scale difference
+        
+    if "Manufacturing" in selected_sectors and len(selected_sectors) > 1:
+        st.info("Comparing Manufacturing with other sectors may make its trend harder to see because of the difference in scale. Try viewing it individually for more detail.")
+    
+    for _ in range(3): # Add spacing  
+        st.write("")
+    
+    # Creating segmented control for indicator selection
+    col1, col2, col3 = st.columns([5, 6.5, 1])
+    with col2:
+        selected_indicator = st.segmented_control("Select Indicator", ["current US$", "% of GDP", "annual % growth"],
+                                    )
+    
+    for _ in range(3): # Add spacing  
+        st.write("")
+    
+    # Replace indicator names in dataframe to be more concise for display in charts
+    econ_df["Indicator Name"] = econ_df["Indicator Name"].replace({
+        f"Agriculture, forestry, and fishing, value added ({selected_indicator})": "Agriculture, forestry, and fishing",
+        f"Industry (including construction), value added ({selected_indicator})": "Industry (including construction)",
+        f"Services, value added ({selected_indicator})": "Services",
+        f"Manufacturing, value added ({selected_indicator})": "Manufacturing"})
+    
+    max_year = econ_df["Year"].max()
+    
+    # Set start year based on selected time frame
+    
+    if time_frame == "Last 5 Years":
+        start_year = max_year - 5
+    elif time_frame == "Last 10 Years":
+        start_year = max_year - 10
+    elif time_frame == "Last 20 Years":
+        start_year = max_year - 20
+    else: # "All Time" or if nothing is selected
+        start_year = int(econ_df["Year"].min())
+    
+    # Creatings graphs 
+    
+    fig_line = px.line(
+        econ_df[(econ_df["Indicator Name"].isin(selected_sectors)) & (econ_df["Year"] >= start_year)].sort_values("Year"),
+        x="Year",
+        y="Value",
+        color="Indicator Name",
+        color_discrete_map=color_map,
+        title=f"Economic Sector over time ({selected_indicator})",
+        labels={"Value": f"{selected_indicator}", "Indicator Name": "Economic Sector"},
+    )
+    
+    fig_bar = px.bar(
+        econ_df[(econ_df["Indicator Name"].isin(selected_sectors)) & (econ_df["Year"] >= start_year)].sort_values("Year"),
+        x="Year",
+        y="Value",
+        color="Indicator Name",
+        color_discrete_map=color_map,
+        title=f"Economic Sector Composition ({selected_indicator})",
+        labels={"Value": f"{selected_indicator}", "Indicator Name": " Economic Sector"}
+    )
+    
+    # Adjusting hover behaviour based on selected indicator
+    
+    if selected_indicator == "current US$":
+        fig_line.update_traces(
+            hovertemplate="%{fullData.name}<br>Year: %{x}<br>$%{y:,.0f}<extra></extra>"
+        )
+        fig_bar.update_traces(
+            hovertemplate="%{fullData.name}<br>Year: %{x}<br>$%{y:,.0f}<extra></extra>"
+        )
+    if selected_indicator == "annual % growth":
+        fig_line.update_traces(
+            hovertemplate="%{fullData.name}<br>Year: %{x}<br>% Change: %{y:.2f}%<extra></extra>"
+        )
+        fig_bar.update_traces(
+            hovertemplate="%{fullData.name}<br>Year: %{x}<br>% Change: %{y:.2f}%<extra></extra>"
+        )
+    
+    if selected_indicator == "% of GDP":
+        fig_line.update_traces(
+            hovertemplate="%{fullData.name}<br>Year: %{x}<br>% of GDP: %{y:.2f}%<extra></extra>"
+        )
+        fig_bar.update_traces(
+            hovertemplate="%{fullData.name}<br>Year: %{x}<br>% of GDP: %{y:.2f}%<extra></extra>"
+        )
+    
+    # Display warning if user has not made all necessary selections to view charts
+    
+    if not selected_sectors or not selected_indicator or not time_frame:
+        if not selected_sectors:
+                st.warning("Please select at least one economic sector to display the charts.")
+        if not selected_indicator:
+                st.warning("Please select an indicator to display the charts.")
+        if not time_frame:
+                st.warning("Please select a time range to display the charts.")
+    
+    else:
+        left, right = st.columns(2)
+        with left:
+            st.plotly_chart(fig_line)
+        with right:
+            st.plotly_chart(fig_bar)
     
 def trade_page():
     
@@ -411,7 +561,7 @@ def trade_page():
     st.write("charts")
     st.write("charts")
 
-    st.button("Go Back", on_click=go, args=("home",))
+    st.button("⬅️ Go Back", on_click=go, args=("home",))
     
     
 if st.session_state.page == "home":
