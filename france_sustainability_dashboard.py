@@ -150,9 +150,11 @@ def home_page():
     
     # Toggle for full chart range vs last 10 years, using columns to position toggle on the right side of the page
     
-    col1, col2 = st.columns([0.7, 0.1])
+    col1, col2, col3 = st.columns([0.7, 0.1, 0.1])
     with col2:
         use_full_range = st.toggle("Full Chart Range", value=False)
+    with col3:
+        adjust_inflation = st.toggle("Adjust for Inflation", value=False)
     
     home_df["Indicator Name"] = home_df["Indicator Name"].replace({
         "GDP (current US$)": "GDP",
@@ -162,11 +164,19 @@ def home_page():
     })    
 
     # Radio buttons to select GDP indicator for display and chart
-    indicator_choice = st.radio(
+    if adjust_inflation:
+        indicator_choice = st.radio(
         "Select GDP Indicator",
-        ["GDP", "GDP per capita", "GDP (inflation adjusted)", "GDP per capita (inflation adjusted)"],
+        ["GDP (inflation adjusted)", "GDP per capita (inflation adjusted)"],
         horizontal=True
     )
+    else:
+        indicator_choice = st.radio(
+            "Select GDP Indicator",
+            ["GDP", "GDP per capita"],
+            horizontal=True
+        )
+    
     
     # Extract GDP value for selected year and indicator, handling missing data
     gdp_series = home_df[
@@ -216,6 +226,10 @@ def home_page():
     margin=dict(l=10, r=10, t=80, b=100)
     )
     
+    fig.update_traces(
+        hovertemplate="Year: %{x}<br>$%{y:,.0f}<extra></extra>"
+    )
+    
     # If full range toggle is off, set x-axis ticks to every year for better readability
     
     if not use_full_range:
@@ -243,6 +257,12 @@ def home_page():
         (df["Indicator Name"].isin(sector_indicators))
     ]
     
+    sector_df["Indicator Name"] = sector_df["Indicator Name"].replace({
+        "Agriculture, forestry, and fishing, value added (current US$)": "Agriculture, forestry, and fishing",
+        "Industry (including construction), value added (current US$)": "Industry (including construction)",
+        "Services, value added (current US$)": "Services",
+        "Manufacturing, value added (current US$)": "Manufacturing"})
+    
     trade_indicators = ["Imports of goods and services (annual % growth)",
     "Exports of goods and services (annual % growth)"]
     
@@ -261,9 +281,11 @@ def home_page():
     
     fig_pie.update_layout(
         height=300,   
-        margin=dict(l=10, r=10, t=50, b=10)
+        margin=dict(l=10, r=10, t=50, b=10),
+        hovermode=False
 
     )
+   
     
     min_year = trade_df["Year"].min()
     max_year = trade_df["Year"].max()
@@ -280,12 +302,14 @@ def home_page():
         (trade_df["Year"] >= start_year) &
         (trade_df["Year"] <= end_year)
     ]
+    
+    import_df.rename(columns={"Value": "Percentage Change (%)"}, inplace=True) # Rename column for clarity in charts
             
     # Line chart for import
     fig_import = px.line(
         import_df,
         x="Year",
-        y="Value",
+        y="Percentage Change (%)",
         title=f"% Change in Imports {start_year} - {end_year}",
         subtitle=f"Hover over point to see exact value. Use slider to adjust time range."
     )
@@ -295,18 +319,24 @@ def home_page():
         margin=dict(l=10, r=10, t=70, b=10)
     )
     
+    fig_import.update_traces(
+    hovertemplate="Year: %{x}<br>Percentage Change: %{y:.2f}%<extra></extra>"
+    )
+    
     export_df = trade_df[
         (trade_df["Indicator Name"] == "Exports of goods and services (annual % growth)") &
         (trade_df["Year"] >= start_year) &
         (trade_df["Year"] <= end_year)
     ]
-     
+    
+    export_df.rename(columns={"Value": "Percentage Change (%)"}, inplace=True) # Rename column for clarity in charts
+            
     # Line chart for export
        
     fig_export = px.line(
         export_df,
         x="Year",
-        y="Value",
+        y="Percentage Change (%)",
         title=f"% Change in Exports {start_year} - {end_year}",
         subtitle=f"Hover over point to see exact value. Use slider to adjust time range." 
     )
@@ -317,9 +347,13 @@ def home_page():
         margin=dict(l=10, r=10, t=70, b=10)
     )
     
+    fig_export.update_traces(
+    hovertemplate="Year: %{x}<br>Percentage Change: %{y:.2f}%<extra></extra>"
+    )
+    
     if not use_full_range:
-        fig_import.update_xaxes(dtick=1)
-        fig_export.update_xaxes(dtick=1)
+        fig_import.update_xaxes(dtick=2)
+        fig_export.update_xaxes(dtick=2)
     
     # Split section into left and right columns for economic structure and trade charts
     
