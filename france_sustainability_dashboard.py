@@ -19,10 +19,14 @@ os.makedirs(folder, exist_ok=True)
 
 df = pd.read_csv(os.path.join(folder, "datasets/indicators_fra.csv")) # Load csv into dataframe
 
+# List of indicators for the homepage
+
 home_indicator_names = [
       
 "GDP (current US$)", 
 "GDP per capita (current US$)",
+"GDP (constant 2015 US$)",
+"GDP per capita (constant 2015 US$)",
 
 "Exports of goods and services (current US$)",
 "Exports of goods and services (% of GDP)",
@@ -41,7 +45,9 @@ home_indicator_names = [
 "Manufacturing, value added (current US$)"
 ]
 
-home_df = df[df["Indicator Name"].isin(home_indicator_names)]
+home_df = df[df["Indicator Name"].isin(home_indicator_names)] # Filter dataframe to include homepage indicators
+
+# List of indicators for economic structure page
 
 econ_indicator_names = [
     
@@ -64,7 +70,9 @@ econ_indicator_names = [
 "Manufacturing, value added (current US$)",
 "Manufacturing, value added (annual % growth)"]
 
-econ_df = df[df["Indicator Name"].isin(econ_indicator_names)]
+econ_df = df[df["Indicator Name"].isin(econ_indicator_names)] # Filter dataframe to include economic structure indicators
+
+# List of indicators for trade page
 
 trade_indicator_names = [
     
@@ -103,7 +111,7 @@ trade_indicator_names = [
 
 ]
 
-trade_df = df[df["Indicator Name"].isin(trade_indicator_names)]
+trade_df = df[df["Indicator Name"].isin(trade_indicator_names)] # Filter dataframe to include trade indicators
 
 
 
@@ -111,24 +119,27 @@ trade_df = df[df["Indicator Name"].isin(trade_indicator_names)]
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
+# Functions defining page content and navigation
 
 def go(page_name):
-    st.session_state.page = page_name
+    st.session_state.page = page_name # Used for page navigation
     
 
 def home_page():
+    
     st.set_page_config(layout="wide")
     
-
+    # Create two columns for flag and title (adjusting positions)
     col1, col2 = st.columns([0.1, 1])
     with col1:
-        st.image(os.path.join(folder, "images/flag.png"), width=500)
+        st.image(os.path.join(folder, "images/flag.png"), width=500) # Flag image
         
 
     with col2:
         st.title("France Economic & Sustainability Dashboard")
         st.write("Explore France\'s economic growth in GDP, trade, and industry sectors. Use the buttons to navigate.")
     
+    # Year slider based on available data range in dataset
     
     year = st.slider(
         "Select Year",
@@ -137,19 +148,27 @@ def home_page():
         value=int(df["Year"].max())
     )
     
+    # Toggle for full chart range vs last 10 years, using columns to position toggle on the right side of the page
     
     col1, col2 = st.columns([0.7, 0.1])
     with col2:
         use_full_range = st.toggle("Full Chart Range", value=False)
     
-    
+    home_df["Indicator Name"] = home_df["Indicator Name"].replace({
+        "GDP (current US$)": "GDP",
+        "GDP per capita (current US$)": "GDP per capita",
+        "GDP (constant 2015 US$)":"GDP (inflation adjusted)",
+        "GDP per capita (constant 2015 US$)":"GDP per capita (inflation adjusted)"
+    })    
+
+    # Radio buttons to select GDP indicator for display and chart
     indicator_choice = st.radio(
         "Select GDP Indicator",
-        ["GDP (current US$)", "GDP per capita (current US$)"],
+        ["GDP", "GDP per capita", "GDP (inflation adjusted)", "GDP per capita (inflation adjusted)"],
         horizontal=True
     )
     
-    
+    # Extract GDP value for selected year and indicator, handling missing data
     gdp_series = home_df[
         (home_df["Indicator Name"] == indicator_choice) &
         (home_df["Year"] == year)]["Value"]
@@ -158,19 +177,19 @@ def home_page():
     
     left, right = st.columns([0.7,0.3])
     with right:
-        if gdp_value == 0:
+        if gdp_value == 0: # Handle case where GDP value is missing for selected year and indicator
             st.warning(f"No data available for {indicator_choice} in {year}. Please select a different year or indicator.")
         else:    
-            st.metric(f"{indicator_choice} {year}", f"${gdp_value:,.0f}")
+            st.metric(f"{indicator_choice} {year}", f"${gdp_value:,.0f}") 
     
     
     min_year = home_df["Year"].min()
     max_year = home_df["Year"].max()
     
-    if use_full_range:
+    if use_full_range: # If full range toggle is on, set start and end years to min and max available in dataset
         start_year = min_year
         end_year = max_year
-    else:
+    else: # If full range toggle is off, set start year to 10 years before selected year and end year to selected year
         start_year = year - 10
         end_year = year
         
@@ -180,22 +199,29 @@ def home_page():
         (home_df["Year"] <= end_year)
     ]
     
+    gdp_df.rename(columns={"Value": "US$"}, inplace=True) # Rename column for clarity in charts
+    
+    # Line chart for GDP growth over time based on selected indicator and year range
     fig = px.line(
         gdp_df,
         x="Year",
-        y="Value",
-        title=f"{indicator_choice} Growth over time ({start_year} - {end_year})",
+        y="US$",
+        title=f"{indicator_choice} growth over time in US$ ({start_year} - {end_year})",
         subtitle=f"Hover over point to see exact value."
     )
     
+    # Adjust chart height and margins for better display
     fig.update_layout(
     height=300,  
     margin=dict(l=10, r=10, t=80, b=100)
     )
     
+    # If full range toggle is off, set x-axis ticks to every year for better readability
+    
     if not use_full_range:
         fig.update_xaxes(dtick=1)
     
+    # Display chart in left column, with warning if selected year is outside available data range
     with left:
         if year <= min_year:
             st.warning(f"Not enough historical data available for selected year. Please use slider to select a year greater than {min_year}")
@@ -203,8 +229,9 @@ def home_page():
         else:
             st.plotly_chart(fig) 
 
-    st.divider()
-    # Preparing data
+    st.divider() # Horizontal divider to separate sections
+    
+    # Preparing data for economic structure and trade charts
     
     sector_indicators = ["Agriculture, forestry, and fishing, value added (current US$)",
     "Industry (including construction), value added (current US$)",
@@ -223,6 +250,7 @@ def home_page():
         (df["Indicator Name"].isin(trade_indicators))
     ]
     
+    # Pie chart for economic structure based on value added by industry sectors for selected year
     fig_pie = px.pie(
         sector_df,
         names="Indicator Name",
@@ -240,7 +268,7 @@ def home_page():
     min_year = trade_df["Year"].min()
     max_year = trade_df["Year"].max()
 
-    if use_full_range:
+    if use_full_range: # If full range toggle is on, set start and end years to min and max available in dataset
         start_year = min_year
         end_year = max_year
     else:
@@ -253,7 +281,7 @@ def home_page():
         (trade_df["Year"] <= end_year)
     ]
             
-    
+    # Line chart for import
     fig_import = px.line(
         import_df,
         x="Year",
@@ -272,7 +300,9 @@ def home_page():
         (trade_df["Year"] >= start_year) &
         (trade_df["Year"] <= end_year)
     ]
-        
+     
+    # Line chart for export
+       
     fig_export = px.line(
         export_df,
         x="Year",
@@ -286,29 +316,34 @@ def home_page():
         height=300,   
         margin=dict(l=10, r=10, t=70, b=10)
     )
+    
     if not use_full_range:
         fig_import.update_xaxes(dtick=1)
         fig_export.update_xaxes(dtick=1)
-  
+    
+    # Split section into left and right columns for economic structure and trade charts
+    
     left, right = st.columns(2)
-
+    
     with left:
+        # Use 3 columns to center in column
         b1,b2,b3 = st.columns(3)
         with b2:
             st.button(" 📊 Dive into Economic Structure", on_click=go, args=("economy",))
-        if year >= max_year:
+        if year >= max_year: # Handle case where no data
             st.warning(f"Not data available for selected year. Explore other years using slider, or 📊 Dive into Economic Structure.")
         else:
             st.plotly_chart(fig_pie)
     
-    
+    # Same concept as left column but for trade
     with right:
-        b1,b2,b3 = st.columns([1,1,1])
+        b1,b2,b3 = st.columns(3)
         with b2:
             st.button("🌍 Explore Trade with Other Countries", on_click=go, args=("trade",))
         if year <= min_year:
             st.warning(f"Not enough historical data available for selected year. Please use slider to select a year greater than {min_year}, or 🌍 Explore Trade with Other Countries.")
         else:
+            # 2 columns to plot trade charts side by side
             col1, col2 = st.columns(2)
             with col1:
                 st.plotly_chart(fig_import)
