@@ -137,7 +137,7 @@ def home_page():
         "Select Year",
         min_value=int(df["Year"].min()),
         max_value=int(df["Year"].max()),
-        value=int(df["Year"].max())
+        value=2015
     )
     
     
@@ -237,10 +237,13 @@ def home_page():
             st.warning(f"Not enough historical data available for selected year. Please use slider to select a year greater than {min_year}")
             st.warning("Or Instead 📊 Dive into Economic Structure or 🌍 Explore Trade with Other Countries.")
         else:
-            st.plotly_chart(fig) 
+            st.plotly_chart(fig)
             
-    for _ in range(3): # Add spacing  
-        st.write("")
+    if not (year <= min_year) and (not use_full_range):
+        with st.expander("Expand to see/download the dataframe used to create the chart"):
+            st.dataframe(gdp_df)
+            
+
     
     st.divider() # Horizontal divider to separate sections
     
@@ -379,6 +382,8 @@ def home_page():
             st.warning(f"No data available for selected year. Explore other years using slider, or 📊 Dive into Economic Structure.")
         else:
             st.plotly_chart(fig_pie)
+            with st.expander("Expand to see/download the dataframe used to create the pie chart"):
+                st.dataframe(sector_df)
     
     # Same concept as left column but for trade
     with right:
@@ -392,8 +397,12 @@ def home_page():
             col1, col2 = st.columns(2)
             with col1:
                 st.plotly_chart(fig_import)
+                with st.expander("Expand to see/download the dataframe used to create the import chart"):
+                    st.dataframe(import_df)
             with col2:
                 st.plotly_chart(fig_export)
+                with st.expander("Expand to see/download the dataframe used to create the export chart"):
+                    st.dataframe(export_df)
       
         
     return
@@ -479,8 +488,10 @@ def econ_page():
     
     # Creatings graphs 
     
+    temp_df = econ_df[(econ_df["Indicator Name"].isin(selected_sectors)) & (econ_df["Year"] >= start_year)].sort_values("Year")
+    
     fig_line = px.line(
-        econ_df[(econ_df["Indicator Name"].isin(selected_sectors)) & (econ_df["Year"] >= start_year)].sort_values("Year"),
+        temp_df,
         x="Year",
         y="Value",
         color="Indicator Name",
@@ -490,7 +501,7 @@ def econ_page():
     )
     
     fig_bar = px.bar(
-        econ_df[(econ_df["Indicator Name"].isin(selected_sectors)) & (econ_df["Year"] >= start_year)].sort_values("Year"),
+        temp_df,
         x="Year",
         y="Value",
         color="Indicator Name",
@@ -540,7 +551,8 @@ def econ_page():
             st.plotly_chart(fig_line)
         with right:
             st.plotly_chart(fig_bar)
-    
+        with st.expander("Expand to see/download the dataset used to create the charts"):
+            st.dataframe(temp_df)
 
 def trade_page():
     #
@@ -561,10 +573,8 @@ def trade_page():
         "Select Year",
         min_value=int(df["Year"].min()),
         max_value=int(df["Year"].max()),
-        value=int(df["Year"].max())
+        value=2015
     )
-    
-    trade_type = st.radio("Select Trade Flow", ["Imports & Exports", "Imports only", "Exports Only"], horizontal=True)
     
     temp_df = trade_df.copy()
     
@@ -572,63 +582,54 @@ def trade_page():
     temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise imports)", "", case=False, regex=False)
     temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise exports to low- and middle-income economies in ", "", case=False, regex=False)
     temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise exports)", "", case=False, regex=False)
-        
-    
     
     regions = temp_df["Indicator Name"].unique().tolist()
+
     
+    import_series = trade_df_totals[(trade_df_totals['Indicator Name'] == 'Merchandise imports (current US$)') 
+                & (trade_df_totals['Year'] == year)]['Value']
     
-    selected_region = st.multiselect("Select Region", regions)
+    export_series = trade_df_totals[(trade_df_totals['Indicator Name'] == 'Merchandise exports (current US$)') 
+                & (trade_df_totals['Year'] == year)]['Value']
+    
+    import_value = import_series.iloc[0] if not import_series.empty else 0
+    export_value = export_series.iloc[0] if not export_series.empty else 0
+    
+    col1, col2, col3, col4 = st.columns([1, 0.1, 0.3, 0.3])
+    with col1:
+        selected_region = st.multiselect("Select Region", regions)
+    with col3:
+        if import_value == 0:
+            st.warning(f"No import data available for {year}. Please select a different year.")
+        else:
+            st.metric(f"Total Imports US$ ({year})", 
+                  f"${import_value:,.0f}")
+    with col4:    
+        if export_value == 0:
+            st.warning(f"No export data available for {year}. Please select a different year.")
+        else:
+            st.metric(f"Total Exports US$ ({year})", 
+                  f"${export_value:,.0f}")
     
     temp_df = trade_df[trade_df["Year"] == year].copy() # Create temporary dataframe for cleaning and filtering based on user selections
     
-    
-    if trade_type == "Imports only":
-        temp_df = temp_df[temp_df["Indicator Name"].str.contains("imports", case=False, na=False)]
-        temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise imports from low- and middle-income economies in ", "", case=False, regex=False)
-        temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise imports)", "", case=False, regex=False)
-        
-        fig_bar = px.bar(
-            temp_df[temp_df["Indicator Name"].isin(selected_region)],
-            x="Indicator Name",
-            y="Value",
-            title=f"Regional Trade Breakdown ({year})",
-            color_discrete_sequence=["#FF2B2B"]
-     )
-        
-    elif trade_type == "Exports Only":
-        temp_df = temp_df[temp_df["Indicator Name"].str.contains("exports", case=False, na=False)]
-        temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise exports to low- and middle-income economies in ", "", case=False, regex=False)
-        temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise exports)", "", case=False, regex=False)
-        
-        fig_bar = px.bar(
-            temp_df[temp_df["Indicator Name"].isin(selected_region)],
-            x="Indicator Name",
-            y="Value",
-            title=f"Regional Trade Breakdown ({year})",
-            color_discrete_sequence=["#0068C9"]
-     )
-    
-    else:
-            # Filter for rows that contain either imports or exports
-            temp_df = temp_df[temp_df["Indicator Name"].str.contains("imports|exports", case=False, na=False)]
+    # Filter for rows that contain either imports or exports
+    temp_df = temp_df[temp_df["Indicator Name"].str.contains("imports|exports", case=False, na=False)]
             
-            temp_df["Type"] = temp_df["Indicator Name"].apply(lambda x: "Export" if "export" in x.lower() else "Import")
-
+    temp_df["Type"] = temp_df["Indicator Name"].apply(lambda x: "Exports" if "export" in x.lower() else "Imports")
             
-            temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise imports from low- and middle-income economies in ", "", case=False, regex=False)
-            temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise imports)", "", case=False, regex=False)
-            temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise exports to low- and middle-income economies in ", "", case=False, regex=False)
-            temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise exports)", "", case=False, regex=False)
+    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise imports from low- and middle-income economies in ", "", case=False, regex=False)
+    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise imports)", "", case=False, regex=False)
+    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise exports to low- and middle-income economies in ", "", case=False, regex=False)
+    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise exports)", "", case=False, regex=False)
             
             
-            color_map = {
-                "Import": "#FF2B2B", 
-                "Export": "#0068C9"                    
-            }
-        
+    color_map = {
+        "Imports": "#FF2B2B", 
+        "Exports": "#0068C9"                    
+    }    
             
-            fig_bar = px.bar(
+    fig_bar = px.bar(
                     temp_df[temp_df["Indicator Name"].isin(selected_region)],
                     x="Indicator Name",
                     y="Value",
@@ -636,27 +637,36 @@ def trade_page():
                     color_discrete_map=color_map,
                     barmode="group",       
                     title=f"Regional Trade Breakdown ({year})",
+                    subtitle=f"Press Legend to toggle Import/Export, Hover over bars to see exact values and use the dropdown to compare different regions.",
                     labels={"Indicator Name": "Region", "Value": "Percentage of Total"}
                 )
     
+    fig_bar.update_layout(
+    legend_title_text='',
+    
+    legend=dict(
+        title_font_size=20,     # Size of the "Type" title
+        orientation="v",      # Vertical orientation
+        yanchor="top",        # Anchor the legend at its top
+        y=1,                  # Top of the chart
+        xanchor="right",      # Anchor the legend at its right edge
+        x=-0.05,              # Move it to the left of the y-axis
+        font=dict(size=18)  # Size of the "Import" and "Export" text),
 
-    if len(selected_region) < 2:
-        st.warning("Select at least 2 regions to compare trade flows. Please select more regions from the dropdown to view the chart.")
+    )
+)
+    if (len(selected_region) < 2) or (fig_bar.data == ()):
+        
+        if not fig_bar.data: # Check if there is data to display in the chart
+            st.warning("No data available for selected year and regions. Please select a different year or regions.")
+                
+        if len(selected_region) < 2:
+            st.warning("Select at least 2 regions to compare trade flows. Please select more regions from the dropdown to view the chart.")
     else:
         st.plotly_chart(fig_bar)
 
-    st.subheader("Text")
-
-    with st.expander("Expand"):
-        st.write("Test")
-    st.write("")
-    st.write("---")
-
-    
-    st.write("Analyze trade....")
-    st.write("charts")
-    st.write("charts")
-    st.write("charts")
+    with st.expander("Expand to see/download the dataset used to create the chart"):
+        st.dataframe(temp_df)
     
 if st.session_state.page == "home":
     home_page()
