@@ -638,23 +638,29 @@ def trade_page():
                     barmode="group",       
                     title=f"Regional Trade Breakdown ({year})",
                     subtitle=f"Press Legend to toggle Import/Export, Hover over bars to see exact values and use the dropdown to compare different regions.",
-                    labels={"Indicator Name": "Region", "Value": "Percentage of Total"}
+                    labels={"Indicator Name": "Region", "Value": "Percentage of Total (%)"}
                 )
     
     fig_bar.update_layout(
     legend_title_text='',
     
     legend=dict(
-        title_font_size=20,     # Size of the "Type" title
+        title_font_size=20,   # Size of the "Type" title
         orientation="v",      # Vertical orientation
         yanchor="top",        # Anchor the legend at its top
         y=1,                  # Top of the chart
         xanchor="right",      # Anchor the legend at its right edge
         x=-0.05,              # Move it to the left of the y-axis
-        font=dict(size=18)  # Size of the "Import" and "Export" text),
-
+        font=dict(size=18)    # Size of the "Import" and "Export" text),
+        )
     )
-)
+    
+    fig_bar.update_traces(
+            hovertemplate="%{x}%{fullData.name}<br>Total: %{y:,.2f}%<extra></extra>"
+        )
+
+    
+    
     if (len(selected_region) < 2) or (fig_bar.data == ()):
         
         if not fig_bar.data: # Check if there is data to display in the chart
