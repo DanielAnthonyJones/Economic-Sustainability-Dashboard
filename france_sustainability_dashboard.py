@@ -81,38 +81,29 @@ trade_indicator_names = [
 
 # Imports
 
-'Merchandise imports (current US$)',
 
-'Merchandise imports from economies in the Arab World (% of total merchandise imports)',
-'Merchandise imports from high-income economies (% of total merchandise imports)',
-'Merchandise imports from low- and middle-income economies outside region (% of total merchandise imports)',
 'Merchandise imports from low- and middle-income economies in East Asia & Pacific (% of total merchandise imports)',
 'Merchandise imports from low- and middle-income economies in Europe & Central Asia (% of total merchandise imports)',
 'Merchandise imports from low- and middle-income economies in Latin America & the Caribbean (% of total merchandise imports)',
 'Merchandise imports from low- and middle-income economies in Middle East & North Africa (% of total merchandise imports)',
 'Merchandise imports from low- and middle-income economies in South Asia (% of total merchandise imports)',
 'Merchandise imports from low- and middle-income economies in Sub-Saharan Africa (% of total merchandise imports)',
-'Merchandise imports from low- and middle-income economies within region (% of total merchandise imports)',
 
 # Exports
 
-'Merchandise exports (current US$)',
-
-'Merchandise exports to economies in the Arab World (% of total merchandise exports)',
-'Merchandise exports to high-income economies (% of total merchandise exports)',
-'Merchandise exports to low- and middle-income economies outside region (% of total merchandise exports)',
 'Merchandise exports to low- and middle-income economies in East Asia & Pacific (% of total merchandise exports)',
 'Merchandise exports to low- and middle-income economies in Europe & Central Asia (% of total merchandise exports)',
 'Merchandise exports to low- and middle-income economies in Latin America & the Caribbean (% of total merchandise exports)',
 'Merchandise exports to low- and middle-income economies in Middle East & North Africa (% of total merchandise exports)',
 'Merchandise exports to low- and middle-income economies in South Asia (% of total merchandise exports)',
 'Merchandise exports to low- and middle-income economies in Sub-Saharan Africa (% of total merchandise exports)',
-'Merchandise exports to low- and middle-income economies within region (% of total merchandise exports)'
 
 
 ]
 
+trade_df_totals = df[df["Indicator Name"].isin(["Merchandise imports (current US$)", "Merchandise exports (current US$)"])] # Dataframe for total merchandise imports and exports indicators
 trade_df = df[df["Indicator Name"].isin(trade_indicator_names)] # Filter dataframe to include trade indicators
+
 
 
 
@@ -550,19 +541,122 @@ def econ_page():
         with right:
             st.plotly_chart(fig_bar)
     
+
 def trade_page():
+    #
     
-    st.title("Trade Page")
-
-    st.write("Analyse trade....")
-
-    # placeholders:
-    st.write("charts")
-    st.write("charts")
-    st.write("charts")
-
-    st.button("⬅️ Go Back", on_click=go, args=("home",))
+    col1, col2, col3 = st.columns([0.1, 1, 0.1])
+    with col1:
+        st.image(os.path.join(folder, "images/flag.png"), width=500) # Flag image
+        
+    with col2:
+        st.title("Global Trade 🌍")
+        st.write("Analyse France's trade with different low & middle-income economies around the world.")
     
+    with col3:
+        st.button("⬅️ Go Back", on_click=go, args=("home",))
+
+        
+    year = st.slider(
+        "Select Year",
+        min_value=int(df["Year"].min()),
+        max_value=int(df["Year"].max()),
+        value=int(df["Year"].max())
+    )
+    
+    trade_type = st.radio("Select Trade Flow", ["Imports & Exports", "Imports only", "Exports Only"], horizontal=True)
+    
+    temp_df = trade_df.copy()
+    
+    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise imports from low- and middle-income economies in ", "", case=False, regex=False)
+    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise imports)", "", case=False, regex=False)
+    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise exports to low- and middle-income economies in ", "", case=False, regex=False)
+    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise exports)", "", case=False, regex=False)
+        
+    
+    
+    regions = temp_df["Indicator Name"].unique().tolist()
+    
+    
+    selected_region = st.multiselect("Select Region", regions)
+    
+    temp_df = trade_df[trade_df["Year"] == year].copy() # Create temporary dataframe for cleaning and filtering based on user selections
+    
+    
+    if trade_type == "Imports only":
+        temp_df = temp_df[temp_df["Indicator Name"].str.contains("imports", case=False, na=False)]
+        temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise imports from low- and middle-income economies in ", "", case=False, regex=False)
+        temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise imports)", "", case=False, regex=False)
+        
+        fig_bar = px.bar(
+            temp_df[temp_df["Indicator Name"].isin(selected_region)],
+            x="Indicator Name",
+            y="Value",
+            title=f"Regional Trade Breakdown ({year})",
+            color_discrete_sequence=["#FF2B2B"]
+     )
+        
+    elif trade_type == "Exports Only":
+        temp_df = temp_df[temp_df["Indicator Name"].str.contains("exports", case=False, na=False)]
+        temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise exports to low- and middle-income economies in ", "", case=False, regex=False)
+        temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise exports)", "", case=False, regex=False)
+        
+        fig_bar = px.bar(
+            temp_df[temp_df["Indicator Name"].isin(selected_region)],
+            x="Indicator Name",
+            y="Value",
+            title=f"Regional Trade Breakdown ({year})",
+            color_discrete_sequence=["#0068C9"]
+     )
+    
+    else:
+            # Filter for rows that contain either imports or exports
+            temp_df = temp_df[temp_df["Indicator Name"].str.contains("imports|exports", case=False, na=False)]
+            
+            temp_df["Type"] = temp_df["Indicator Name"].apply(lambda x: "Export" if "export" in x.lower() else "Import")
+
+            
+            temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise imports from low- and middle-income economies in ", "", case=False, regex=False)
+            temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise imports)", "", case=False, regex=False)
+            temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise exports to low- and middle-income economies in ", "", case=False, regex=False)
+            temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise exports)", "", case=False, regex=False)
+            
+            
+            color_map = {
+                "Import": "#FF2B2B", 
+                "Export": "#0068C9"                    
+            }
+        
+            
+            fig_bar = px.bar(
+                    temp_df[temp_df["Indicator Name"].isin(selected_region)],
+                    x="Indicator Name",
+                    y="Value",
+                    color="Type",
+                    color_discrete_map=color_map,
+                    barmode="group",       
+                    title=f"Regional Trade Breakdown ({year})",
+                    labels={"Indicator Name": "Region", "Value": "Percentage of Total"}
+                )
+    
+
+    if len(selected_region) < 2:
+        st.warning("Select at least 2 regions to compare trade flows. Please select more regions from the dropdown to view the chart.")
+    else:
+        st.plotly_chart(fig_bar)
+
+    st.subheader("Text")
+
+    with st.expander("Expand"):
+        st.write("Test")
+    st.write("")
+    st.write("---")
+
+    
+    st.write("Analyze trade....")
+    st.write("charts")
+    st.write("charts")
+    st.write("charts")
     
 if st.session_state.page == "home":
     home_page()
