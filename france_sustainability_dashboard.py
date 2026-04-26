@@ -121,6 +121,7 @@ def home_page():
     
     st.set_page_config(layout="wide")
     
+    
     # Create two columns for flag and title (adjusting positions)
     col1, col2 = st.columns([0.1, 1])
     with col1:
@@ -140,6 +141,7 @@ def home_page():
         value=2015
     )
     
+    # Code for above divider
     
     # Toggle for full chart range vs last 10 years, using columns to position toggle on the right side of the page
     
@@ -156,10 +158,7 @@ def home_page():
         "GDP per capita (constant 2015 US$)":"GDP per capita (inflation adjusted)"
     })    
 
-    for _ in range(3): # Add spacing  
-        st.write("")
-
-    # Radio buttons to select GDP indicator for display and chart
+    # Radio buttons to select GDP indicator for display and chart depending on if adjusted for inflation
     if adjust_inflation:
         indicator_choice = st.radio(
         "Select GDP Indicator",
@@ -175,6 +174,7 @@ def home_page():
     
     
     # Extract GDP value for selected year and indicator, handling missing data
+    
     gdp_series = home_df[
         (home_df["Indicator Name"] == indicator_choice) &
         (home_df["Year"] == year)]["Value"]
@@ -222,6 +222,8 @@ def home_page():
     margin=dict(l=10, r=10, t=80, b=100)
     )
     
+    # Change hover functionality
+    
     fig.update_traces(
         hovertemplate="Year: %{x}<br>$%{y:,.0f}<extra></extra>"
     )
@@ -238,19 +240,23 @@ def home_page():
             st.warning("Or Instead 📊 Dive into Economic Structure or 🌍 Explore Trade with Other Countries.")
         else:
             st.plotly_chart(fig)
-            
+    
+    # Ability to see dataset and download in an expander
+           
     if not (year <= min_year) and (not use_full_range):
         with st.expander("Expand to see/download the dataframe used to create the chart"):
             st.dataframe(gdp_df)
             
-
-    
     st.divider() # Horizontal divider to separate sections
+    
+    # Code for below divider
     
     for _ in range(3): # Add spacing  
         st.write("")
     
-    # Preparing data for economic structure and trade charts
+    # Preparing data for economic structure and trade charts (hopefully this means the graphs will update closer to simultaneously)
+    
+    # Left side
     
     sector_indicators = ["Agriculture, forestry, and fishing, value added (current US$)",
     "Industry (including construction), value added (current US$)",
@@ -268,6 +274,8 @@ def home_page():
         "Services, value added (current US$)": "Services",
         "Manufacturing, value added (current US$)": "Manufacturing"})
     
+    # Right side
+    
     trade_indicators = ["Imports of goods and services (annual % growth)",
     "Exports of goods and services (annual % growth)"]
     
@@ -275,6 +283,9 @@ def home_page():
         (df["Indicator Name"].isin(trade_indicators))
     ]
 
+
+    # Hard coding colours for consistency (colour picker used to keep same as default because it looks nice and matches french flag)
+    
     color_map = {
         "Agriculture, forestry, and fishing": "#FF2B2B", 
         "Industry (including construction)": "#0068C9",  
@@ -282,7 +293,10 @@ def home_page():
         "Manufacturing": "#FFABAB"                      
     }
     
+    # Left side 
+    
     # Pie chart for economic structure based on value added by industry sectors for selected year
+    
     fig_pie = px.pie(
         sector_df,
         names="Indicator Name",
@@ -293,6 +307,8 @@ def home_page():
         subtitle=f"Press Legend to toggle industries on/off"
     )
     
+    # Adjusting plot space and removing option to over
+    
     fig_pie.update_layout(
         height=300,   
         margin=dict(l=10, r=10, t=50, b=10),
@@ -300,6 +316,7 @@ def home_page():
 
     )
    
+   # Right side
     
     min_year = trade_df["Year"].min()
     max_year = trade_df["Year"].max()
@@ -320,6 +337,7 @@ def home_page():
     import_df.rename(columns={"Value": "Percentage Change (%)"}, inplace=True) # Rename column for clarity in charts
             
     # Line chart for import
+    
     fig_import = px.line(
         import_df.sort_values("Year"),
         x="Year",
@@ -328,10 +346,14 @@ def home_page():
         subtitle=f"Hover over point to see exact value. Use slider to adjust time range."
     )
     
+    # Adjusting plot area
+    
     fig_import.update_layout(
         height=300,   
         margin=dict(l=10, r=10, t=70, b=10)
     )
+    
+    # Adjusting hover descriptions
     
     fig_import.update_traces(
     hovertemplate="Year: %{x}<br>Percentage Change: %{y:.2f}%<extra></extra>"
@@ -355,15 +377,20 @@ def home_page():
         subtitle=f"Hover over point to see exact value. Use slider to adjust time range." 
     )
     
+    # Adjusting plot area
     
     fig_export.update_layout(
         height=300,   
         margin=dict(l=10, r=10, t=70, b=10)
     )
     
+    # Adjusting hover descriptions
+    
     fig_export.update_traces(
     hovertemplate="Year: %{x}<br>Percentage Change: %{y:.2f}%<extra></extra>"
     )
+    
+    # Changing tick rate for readability
     
     if not use_full_range:
         fig_import.update_xaxes(dtick=2)
@@ -449,7 +476,7 @@ def econ_page():
     for _ in range(3): # Add spacing  
         st.write("")
         
-    # Warning for comparing manufacturing data due to scale difference
+    # Warning for comparing manufacturing data due to  observed scale difference
         
     if "Manufacturing" in selected_sectors and len(selected_sectors) > 1:
         st.info("Comparing Manufacturing with other sectors may make its trend harder to see because of the difference in scale. Try viewing it individually for more detail.")
@@ -519,7 +546,7 @@ def econ_page():
         fig_bar.update_traces(
             hovertemplate="%{fullData.name}<br>Year: %{x}<br>$%{y:,.0f}<extra></extra>"
         )
-    if selected_indicator == "annual % growth":
+    elif selected_indicator == "annual % growth":
         fig_line.update_traces(
             hovertemplate="%{fullData.name}<br>Year: %{x}<br>% Change: %{y:.2f}%<extra></extra>"
         )
@@ -527,13 +554,14 @@ def econ_page():
             hovertemplate="%{fullData.name}<br>Year: %{x}<br>% Change: %{y:.2f}%<extra></extra>"
         )
     
-    if selected_indicator == "% of GDP":
+    elif selected_indicator == "% of GDP":
         fig_line.update_traces(
             hovertemplate="%{fullData.name}<br>Year: %{x}<br>% of GDP: %{y:.2f}%<extra></extra>"
         )
         fig_bar.update_traces(
             hovertemplate="%{fullData.name}<br>Year: %{x}<br>% of GDP: %{y:.2f}%<extra></extra>"
         )
+    
     
     # Display warning if user has not made all necessary selections to view charts
     
@@ -576,15 +604,22 @@ def trade_page():
         value=2015
     )
     
-    temp_df = trade_df.copy()
+    def clean_regions(dataframe):
+        
+        temp_df = dataframe.copy()
+        
+        temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise imports from low- and middle-income economies in ", "", case=False, regex=False) # Removing first section before region in indicator
+        temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise imports)", "", case=False, regex=False) # Removing section after region in indicator
+        temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise exports to low- and middle-income economies in ", "", case=False, regex=False) # Removing section after region in indicator
+        temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise exports)", "", case=False, regex=False) # Removing section after region in indicator
+        
+        return temp_df
     
-    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise imports from low- and middle-income economies in ", "", case=False, regex=False)
-    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise imports)", "", case=False, regex=False)
-    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise exports to low- and middle-income economies in ", "", case=False, regex=False)
-    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise exports)", "", case=False, regex=False)
-    
-    regions = temp_df["Indicator Name"].unique().tolist()
+    temp_df = clean_regions(trade_df)    
+    regions = temp_df["Indicator Name"].unique().tolist() # List of only region section of indicator
 
+    
+    # Filtering dataframe for figures at specific year
     
     import_series = trade_df_totals[(trade_df_totals['Indicator Name'] == 'Merchandise imports (current US$)') 
                 & (trade_df_totals['Year'] == year)]['Value']
@@ -592,8 +627,12 @@ def trade_page():
     export_series = trade_df_totals[(trade_df_totals['Indicator Name'] == 'Merchandise exports (current US$)') 
                 & (trade_df_totals['Year'] == year)]['Value']
     
+    # If there is missing data
+    
     import_value = import_series.iloc[0] if not import_series.empty else 0
     export_value = export_series.iloc[0] if not export_series.empty else 0
+    
+    # Import/Export Metrics
     
     col1, col2, col3, col4 = st.columns([1, 0.1, 0.3, 0.3])
     with col1:
@@ -611,19 +650,16 @@ def trade_page():
             st.metric(f"Total Exports US$ ({year})", 
                   f"${export_value:,.0f}")
     
-    temp_df = trade_df[trade_df["Year"] == year].copy() # Create temporary dataframe for cleaning and filtering based on user selections
+    plot_df = trade_df[trade_df["Year"] == year].copy() # Create temporary dataframe for cleaning and filtering based on user selections
     
     # Filter for rows that contain either imports or exports
-    temp_df = temp_df[temp_df["Indicator Name"].str.contains("imports|exports", case=False, na=False)]
+    
+    plot_df = plot_df[plot_df["Indicator Name"].str.contains("imports|exports", case=False, na=False)]
             
-    temp_df["Type"] = temp_df["Indicator Name"].apply(lambda x: "Exports" if "export" in x.lower() else "Imports")
-            
-    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise imports from low- and middle-income economies in ", "", case=False, regex=False)
-    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise imports)", "", case=False, regex=False)
-    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("Merchandise exports to low- and middle-income economies in ", "", case=False, regex=False)
-    temp_df["Indicator Name"] = temp_df["Indicator Name"].str.replace("(% of total merchandise exports)", "", case=False, regex=False)
-            
-            
+    plot_df["Type"] = plot_df["Indicator Name"].apply(lambda x: "Exports" if "export" in x.lower() else "Imports") # New columns for type
+    
+    temp_df = clean_regions(plot_df)
+                        
     color_map = {
         "Imports": "#FF2B2B", 
         "Exports": "#0068C9"                    
@@ -642,7 +678,7 @@ def trade_page():
                 )
     
     fig_bar.update_layout(
-    legend_title_text='',
+    legend_title_text='', # Remove legend title
     
     legend=dict(
         title_font_size=20,   # Size of the "Type" title
@@ -651,15 +687,19 @@ def trade_page():
         y=1,                  # Top of the chart
         xanchor="right",      # Anchor the legend at its right edge
         x=-0.05,              # Move it to the left of the y-axis
-        font=dict(size=18)    # Size of the "Import" and "Export" text),
+        font=dict(size=18)    # Size of the "Import" and "Export" text
         )
     )
+    
+    
+    # Changed hover display
     
     fig_bar.update_traces(
             hovertemplate="%{x}%{fullData.name}<br>Total: %{y:,.2f}%<extra></extra>"
         )
 
     
+    # Some logic to display warnings instead of plotting graphs for certain conditions
     
     if (len(selected_region) < 2) or (fig_bar.data == ()):
         
@@ -673,6 +713,9 @@ def trade_page():
 
     with st.expander("Expand to see/download the dataset used to create the chart"):
         st.dataframe(temp_df)
+
+
+# Calling functions to load page depending on state
     
 if st.session_state.page == "home":
     home_page()
