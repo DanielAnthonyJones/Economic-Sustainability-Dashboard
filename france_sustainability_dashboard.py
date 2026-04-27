@@ -233,6 +233,16 @@ def home_page():
     if not use_full_range:
         fig.update_xaxes(dtick=1)
     
+    start_value = gdp_df[gdp_df["Year"] == start_year]["US$"]
+    end_value = gdp_df[gdp_df["Year"] == end_year]["US$"]
+    
+    if not start_value.empty and not end_value.empty:
+        start_value = start_value.iloc[0]
+        end_value = end_value.iloc[0]
+        
+        growth = end_value - start_value
+        growth_pct = (growth / start_value) * 100 if start_value != 0 else 0
+        
     # Display chart in left column, with warning if selected year is outside available data range
     with left:
         if (year <= min_year) and (not use_full_range):
@@ -241,6 +251,22 @@ def home_page():
         else:
             st.plotly_chart(fig)
     
+    
+    # Generate insights based on data 
+    try:
+        st.write(
+                f"From {start_year} to {end_year}, {indicator_choice.lower()} "
+                f"{'increased' if growth >= 0 else 'decreased'} by "
+                f"${abs(growth):,.0f} ({abs(growth_pct):.2f}%)."
+                f"{' Re-evaluation and reimplementation of policies used during this time is reccommended.' 
+                    if growth >= 0 else ' A review of which policies had a negative effect during this time and why is reccommended.'}"
+            )
+    except:
+        st.write("No insights available for this selection.")
+        
+    st.write("")
+        
+            
     # Ability to see dataset and download in an expander
            
     if not (year <= min_year) and (not use_full_range):
@@ -311,7 +337,7 @@ def home_page():
     
     fig_pie.update_layout(
         height=300,   
-        margin=dict(l=10, r=10, t=50, b=10),
+        margin=dict(l=10, r=10, t=60, b=10),
         hovermode=False
 
     )
